@@ -30,7 +30,15 @@ pip install -r requirements.txt
 ```bash
 python -m src.data.load         # CSV -> Parquet
 python -m src.data.preprocess   # clean, rebuild timelines, create history/val/test splits
+python -m src.features.build_features   # candidates + 25 features (train = val target, test = test target)
+python -m src.models.run_baselines      # rule-based baselines
+python -m src.models.train              # Logistic Regression + LightGBM, comparison, feature importance
+python -m src.models.ablation           # feature-group ablation
+python -m src.models.score              # batch predictions for the dashboard
+streamlit run src/app/dashboard.py      # demo dashboard
 ```
+
+Architecture: see [docs/architecture.md](docs/architecture.md).
 
 ## Project structure
 ```

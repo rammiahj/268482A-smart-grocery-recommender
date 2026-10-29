@@ -1,0 +1,50 @@
+// System architecture: Smart Grocery Recommender
+// Render: dot -Tpng -Gdpi=200 docs/architecture.dot -o docs/architecture.png
+digraph G {
+  graph [rankdir=TB, fontname="Helvetica", fontsize=20, labelloc=t, nodesep=0.35, ranksep=0.55, pad=0.3,
+         label=<<B>Smart Grocery Recommender: System Architecture</B><BR/><FONT POINT-SIZE="12" COLOR="#555555">solid = implemented (Milestone 2)    dashed = planned (final submission)</FONT>>];
+  node  [shape=box, style="rounded,filled", fontname="Helvetica", fontsize=11, color="#4A5A78", fillcolor="#FFFFFF", penwidth=1.2, margin="0.15,0.08"];
+  edge  [color="#6B7A90", penwidth=1.2, arrowsize=0.7, fontname="Helvetica", fontsize=9];
+
+  subgraph cluster_data {
+    label=<<B>1. Data layer</B>>; style="rounded,filled"; fillcolor="#EEF3FA"; color="#B9C7DD"; fontsize=13;
+    raw    [label=<<B>Instacart CSVs</B><BR/><FONT POINT-SIZE="9">6 files · 3.4M orders · 33.8M items</FONT>>, shape=cylinder, fillcolor="#DCE6F5"];
+    load   [label=<<B>Ingestion</B><BR/><FONT POINT-SIZE="9">load.py · CSV → Parquet (DuckDB)</FONT>>];
+    store  [label=<<B>Parquet store</B><BR/><FONT POINT-SIZE="9">data/processed</FONT>>, shape=cylinder, fillcolor="#DCE6F5"];
+  }
+
+  subgraph cluster_proc {
+    label=<<B>2. Processing &amp; features</B>>; style="rounded,filled"; fillcolor="#EEF7F0"; color="#B8D6C0"; fontsize=13;
+    prep   [label=<<B>Preprocessing</B><BR/><FONT POINT-SIZE="9">preprocess.py · cleaning · relative timeline<BR/>per-user split: history / val / test</FONT>>];
+    feat   [label=<<B>Feature engineering</B><BR/><FONT POINT-SIZE="9">build_features.py · candidates (previously bought)<BR/>25 features: user · product · frequency · recency · timing</FONT>>];
+    fstore [label=<<B>Feature sets</B><BR/><FONT POINT-SIZE="9">train = val target · test = test target</FONT>>, shape=cylinder, fillcolor="#D7EEDD"];
+  }
+
+  subgraph cluster_model {
+    label=<<B>3. Modelling &amp; evaluation</B>>; style="rounded,filled"; fillcolor="#FBF3E8"; color="#E2CDA8"; fontsize=13;
+    base   [label=<<B>Rule-based baselines</B><BR/><FONT POINT-SIZE="9">most frequent · last order<BR/>fixed interval · popularity</FONT>>];
+    ml     [label=<<B>Replenishment models</B><BR/><FONT POINT-SIZE="9">Logistic Regression · LightGBM<BR/>(tuned on held-out users)</FONT>>];
+    cf     [label=<<B>Personalised recommendation</B><BR/><FONT POINT-SIZE="9">item-based CF · ALS</FONT>>, style="rounded,dashed", color="#8A97AB"];
+    ar     [label=<<B>Association rules</B><BR/><FONT POINT-SIZE="9">FP-Growth · support / confidence / lift</FONT>>, style="rounded,dashed", color="#8A97AB"];
+    eval   [label=<<B>Evaluation framework</B><BR/><FONT POINT-SIZE="9">evaluate.py · P/R/F1/HitRate@K · PR-AUC<BR/>ablation · feature importance</FONT>>];
+    reg    [label=<<B>Model &amp; results store</B><BR/><FONT POINT-SIZE="9">models/ · reports/</FONT>>, shape=cylinder, fillcolor="#F4E3C6"];
+  }
+
+  subgraph cluster_serve {
+    label=<<B>4. Serving &amp; presentation</B>>; style="rounded,filled"; fillcolor="#F4EEF8"; color="#D2C3DF"; fontsize=13;
+    score  [label=<<B>Scoring service</B><BR/><FONT POINT-SIZE="9">score.py · batch predictions per user</FONT>>];
+    fuse   [label=<<B>Shopping-list service</B><BR/><FONT POINT-SIZE="9">rank fusion + reasons per item</FONT>>, style="rounded,dashed", color="#8A97AB"];
+    api    [label=<<B>REST API</B><BR/><FONT POINT-SIZE="9">FastAPI · /shopping-list · /recommendations</FONT>>, style="rounded,dashed", color="#8A97AB"];
+    ui     [label=<<B>Dashboard</B><BR/><FONT POINT-SIZE="9">Streamlit · predicted list vs actual order</FONT>>];
+  }
+
+  raw -> load -> store -> prep -> feat -> fstore;
+  fstore -> base; fstore -> ml;
+  store -> cf [style=dashed, color="#9AA6B8"]; store -> ar [style=dashed, color="#9AA6B8"];
+  base -> eval; ml -> eval; cf -> eval [style=dashed, color="#9AA6B8"];
+  ml -> reg; eval -> reg;
+  reg -> score; fstore -> score;
+  score -> ui;
+  score -> fuse [style=dashed, color="#9AA6B8"]; cf -> fuse [style=dashed, color="#9AA6B8"]; ar -> fuse [style=dashed, color="#9AA6B8"];
+  fuse -> api [style=dashed, color="#9AA6B8"]; api -> ui [style=dashed, color="#9AA6B8", label="  final"];
+}
